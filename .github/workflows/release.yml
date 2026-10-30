@@ -1,22 +1,43 @@
 name: release
 
-# Manual only: a release is a reviewed decision, and its components.json digests are copied into a Gateway build.
+# Manual only, from main only: a release is a reviewed decision, and its components.json digests are copied into a
+# Gateway build. Also enable Immutable releases and a tag ruleset for `media-*` in the repository settings.
 on:
   workflow_dispatch:
     inputs:
       release:
-        description: 'Release tag, for example media-2026.11.1'
+        description: 'Release tag, media-YYYY.MM.N (for example media-2026.11.1)'
         required: true
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      RELEASE: ${{ inputs.release }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Release name is new and well formed
+        run: |
+          [[ "$RELEASE" =~ ^media-[0-9]{4}\.[0-9]{2}\.[0-9]+$ ]] || { echo "release must look like media-YYYY.MM.N" >&2; exit 1; }
+          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "release $RELEASE exists; never overwritten" >&2; exit 1; fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE" >/dev/null 2>&1; then echo "tag $RELEASE exists; never reused" >&2; exit 1; fi
+
   build:
+    needs: check
+    if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
@@ -26,13 +47,13 @@ jobs:
           - platform: linux-arm64
             runner: ubuntu-24.04-arm
           - platform: darwin-arm64
-            runner: macos-14
+            runner: macos-15
           - platform: win32-x64
             runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Toolchain (Linux)
@@ -40,7 +61,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential nasm pkg-config jq unzip
-          if [ "${{ matrix.platform }}" = "win32-x64" ]; then sudo apt-get install -y --no-install-recommends mingw-w64; fi
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then sudo apt-get install -y --no-install-recommends mingw-w64 wine64; fi
       - name: Toolchain (macOS)
         if: runner.os == 'macOS'
         run: command -v jq
@@ -48,7 +69,7 @@ jobs:
         run: scripts/fetch-go2rtc.sh "${{ matrix.platform }}" out
       - name: ffmpeg
         run: scripts/build-ffmpeg.sh "${{ matrix.platform }}" out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: assets-${{ matrix.platform }}
           path: out/
@@ -57,39 +78,41 @@ jobs:
 
   publish:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
     env:
       RELEASE: ${{ inputs.release }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: assets-*
           path: dist
           merge-multiple: true
-      - name: Release name
-        run: |
-          case "$RELEASE" in media-[0-9]*) ;; *) echo "release must look like media-YYYY.MM.N" >&2; exit 1 ;; esac
-          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "release $RELEASE exists; never overwritten" >&2; exit 1; fi
-      - name: Licences, source, build script
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Licences, notices, source, build scripts
         run: |
           source scripts/common.sh
           v="$(jq -r .ffmpeg.version versions.json)"
-          curl -fsSL --proto '=https' -o "dist/ffmpeg-$v.tar.xz" "$(jq -r .ffmpeg.source versions.json)"
+          fetch "dist/ffmpeg-$v.tar.xz" "$(jq -r .ffmpeg.source versions.json)" 67108864
           verify_sha256 "dist/ffmpeg-$v.tar.xz" "$(jq -r .ffmpeg.sha256 versions.json)"
-          cp licenses/go2rtc-MIT.txt licenses/ffmpeg-LGPL-2.1.txt NOTICE.txt scripts/build-ffmpeg.sh dist/
+          scripts/go2rtc-notices.sh dist/go2rtc-THIRD-PARTY.txt
+          cp licenses/go2rtc-MIT.txt licenses/ffmpeg-LGPL-2.1.txt NOTICE.txt scripts/build-ffmpeg.sh scripts/common.sh versions.json dist/
       - name: Manifest
-        run: scripts/make-manifest.sh dist "$RELEASE"
+        run: scripts/make-manifest.sh dist "$RELEASE" "$GITHUB_SHA"
       - name: Publish
         run: |
           cd dist
           rm -f ./*.upstream-sha256
-          gh release create "$RELEASE" --repo "$GITHUB_REPOSITORY" --title "$RELEASE" \
-            --notes "Media component for the Sidiom Gateway. Pins: components.json. Licences: go2rtc MIT, ffmpeg LGPL-2.1-or-later (source and build script attached)." \
+          gh release create "$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$RELEASE" \
+            --notes "Media component for the Sidiom Gateway, built from $GITHUB_SHA. Pins: components.json. Licences: go2rtc MIT (+ third-party notices), ffmpeg LGPL-2.1-or-later (source and build scripts attached)." \
             ./*

@@ -15,7 +15,7 @@ version="$(jq -r '.ffmpeg.version' "$VERSIONS")"
 source_url="$(jq -r '.ffmpeg.source' "$VERSIONS")"
 expected="$(jq -r '.ffmpeg.sha256' "$VERSIONS")"
 
-curl -fsSL --proto '=https' -o "$work/src.tar.xz" "$source_url"
+fetch "$work/src.tar.xz" "$source_url" 67108864
 verify_sha256 "$work/src.tar.xz" "$expected"
 tar -xJf "$work/src.tar.xz" -C "$work"
 cd "$work/ffmpeg-$version"
@@ -26,7 +26,7 @@ flags=(
   --enable-static --disable-shared
   --enable-avfilter --enable-swscale
   --enable-protocol=fd,pipe,file
-  --enable-demuxer=h264,hevc,mjpeg
+  --enable-demuxer=h264,hevc,mjpeg,image_jpeg_pipe
   --enable-parser=h264,hevc,mjpeg
   --enable-decoder=h264,hevc,mjpeg
   --enable-encoder=mjpeg
@@ -39,7 +39,7 @@ case "$platform" in
   linux-*) flags+=(--pkg-config-flags=--static --extra-ldflags=-static) ;;
   darwin-arm64) flags+=(--extra-cflags=-mmacosx-version-min=13.0 --extra-ldflags=-mmacosx-version-min=13.0) ;;
   win32-x64)
-    flags+=(--target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static)
+    flags+=(--enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static)
     exe="ffmpeg.exe" ;;
 esac
 
@@ -52,18 +52,16 @@ case "$platform" in
   *) strip "$exe" ;;
 esac
 
-# Licence and feature checks on the built binary where it can run here.
-case "$platform" in
-  win32-x64) grep -q 'CONFIG_GPL 0' config.h && grep -q 'CONFIG_NONFREE 0' config.h ;;
-  *)
-    # Captured first: `grep -q` closing a pipe early would fail the pipeline under pipefail.
-    licence="$(./"$exe" -hide_banner -L)"; decoders="$(./"$exe" -hide_banner -decoders)"; encoders="$(./"$exe" -hide_banner -encoders)"
-    grep -q 'GNU Lesser General Public' <<<"$licence"; grep -q 'version 2.1 of the License' <<<"$licence"
-    grep -Eq ' h264 ' <<<"$decoders"
-    grep -Eq ' hevc ' <<<"$decoders"
-    grep -Eq ' mjpeg ' <<<"$encoders"
-    ;;
-esac
+# Licence and feature checks on the built binary (the Windows one under wine).
+run=(./"$exe")
+[ "$platform" = "win32-x64" ] && run=(env WINEDEBUG=-all wine "./$exe")
+grep -q 'CONFIG_GPL 0' config.h && grep -q 'CONFIG_NONFREE 0' config.h
+# Captured first: `grep -q` closing a pipe early would fail the pipeline under pipefail.
+licence="$("${run[@]}" -hide_banner -L)"; decoders="$("${run[@]}" -hide_banner -decoders)"; encoders="$("${run[@]}" -hide_banner -encoders)"
+grep -q 'GNU Lesser General Public' <<<"$licence"; grep -q 'version 2.1 of the License' <<<"$licence"
+grep -Eq ' h264 ' <<<"$decoders"
+grep -Eq ' hevc ' <<<"$decoders"
+grep -Eq ' mjpeg ' <<<"$encoders"
 
 chmod 0755 "$exe"
 pack "$exe" "$out/ffmpeg-$platform.gz"

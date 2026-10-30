@@ -14,7 +14,7 @@ name="$(jq -r --arg p "$platform" '.go2rtc.assets[$p].name' "$VERSIONS")"
 member="$(jq -r --arg p "$platform" '.go2rtc.assets[$p].member // empty' "$VERSIONS")"
 expected="$(jq -r --arg p "$platform" '.go2rtc.assets[$p].sha256' "$VERSIONS")"
 
-curl -fsSL --proto '=https' --max-filesize 67108864 -o "$work/$name" "$base$name"
+fetch "$work/$name" "$base$name" 67108864
 verify_sha256 "$work/$name" "$expected"
 
 if [ -n "$member" ]; then

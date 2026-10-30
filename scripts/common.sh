@@ -1,7 +1,7 @@
 # Shared helpers; sourced by the other scripts.
 set -euo pipefail
 
-PLATFORMS="linux-arm64 linux-amd64 darwin-arm64 win32-x64"
+PLATFORMS="${PLATFORMS:-linux-arm64 linux-amd64 darwin-arm64 win32-x64}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSIONS="$ROOT/versions.json"
 
@@ -26,3 +26,6 @@ verify_sha256() {
 
 # Deterministic gzip: no name, no timestamp.
 pack() { gzip -n -9 -c "$1" >"$2"; }
+
+# HTTPS only, also on redirects; bounded size; a few retries for transient errors.
+fetch() { curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 --max-filesize "$3" -o "$1" "$2"; }

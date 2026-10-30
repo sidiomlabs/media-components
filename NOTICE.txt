@@ -3,10 +3,12 @@ Sidiom media component
 This release contains third-party programs, redistributed unmodified (go2rtc) or built from unmodified source (ffmpeg):
 
 go2rtc (https://github.com/AlexxIT/go2rtc), Copyright (c) 2022 Alexey Khit, MIT License (go2rtc-MIT.txt).
-The binaries are the upstream release assets, verified against the upstream SHA-256 and re-packed as gzip.
+The binaries are the upstream release assets, verified against the upstream SHA-256 and re-packed as gzip. They
+statically include the Go standard library (BSD-3-Clause) and Go modules such as pion (MIT); their licence texts are in
+go2rtc-THIRD-PARTY.txt.
 
 FFmpeg (https://ffmpeg.org), licensed under the GNU Lesser General Public License version 2.1 or later
 (ffmpeg-LGPL-2.1.txt). Built without any GPL or nonfree component. The corresponding source is the attached
 ffmpeg-<version>.tar.xz, unmodified from ffmpeg.org; the exact configure line per platform is in
-ffmpeg-<platform>.configure.txt and the build script is build-ffmpeg.sh. The source stays available with every
+ffmpeg-<platform>.configure.txt and the build scripts are build-ffmpeg.sh, common.sh and versions.json. The source stays available with every
 release that ships the binary.

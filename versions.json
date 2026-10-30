@@ -1,0 +1,20 @@
+{
+  "go2rtc": {
+    "version": "1.9.15",
+    "license": "MIT",
+    "upstream": "https://github.com/AlexxIT/go2rtc/releases/download/v1.9.15/",
+    "assets": {
+      "linux-arm64": { "name": "go2rtc_linux_arm64", "sha256": "af416f22b21a24ab83b8d78642190b4932ae695b4e386853f11d1b0319781763" },
+      "linux-amd64": { "name": "go2rtc_linux_amd64", "sha256": "20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712" },
+      "darwin-arm64": { "name": "go2rtc_mac_arm64.zip", "member": "go2rtc", "sha256": "d0cf858a71803dce2377423bc830639137ee96c335f88e9912e7f7898374266d" },
+      "win32-x64": { "name": "go2rtc_win64.zip", "member": "go2rtc.exe", "sha256": "5b448fc90f15c925406d8da0984301985e385050222c1c2bbdf0a76fe4b1e9cb" }
+    }
+  },
+  "ffmpeg": {
+    "version": "8.1.3",
+    "license": "LGPL-2.1-or-later",
+    "source": "https://ffmpeg.org/releases/ffmpeg-8.1.3.tar.xz",
+    "sha256": "7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178a3",
+    "signingKey": "FCF986EA15E6E293A5644F10B4322F04D67658D8"
+  }
+}

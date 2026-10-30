@@ -1,0 +1,95 @@
+name: release
+
+# Manual only: a release is a reviewed decision, and its components.json digests are copied into a Gateway build.
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release tag, for example media-2026.11.1'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux-amd64
+            runner: ubuntu-24.04
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: darwin-arm64
+            runner: macos-14
+          - platform: win32-x64
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential nasm pkg-config jq unzip
+          if [ "${{ matrix.platform }}" = "win32-x64" ]; then sudo apt-get install -y --no-install-recommends mingw-w64; fi
+      - name: Toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: command -v jq
+      - name: go2rtc
+        run: scripts/fetch-go2rtc.sh "${{ matrix.platform }}" out
+      - name: ffmpeg
+        run: scripts/build-ffmpeg.sh "${{ matrix.platform }}" out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assets-${{ matrix.platform }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      RELEASE: ${{ inputs.release }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: assets-*
+          path: dist
+          merge-multiple: true
+      - name: Release name
+        run: |
+          case "$RELEASE" in media-[0-9]*) ;; *) echo "release must look like media-YYYY.MM.N" >&2; exit 1 ;; esac
+          if gh release view "$RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "release $RELEASE exists; never overwritten" >&2; exit 1; fi
+      - name: Licences, source, build script
+        run: |
+          source scripts/common.sh
+          v="$(jq -r .ffmpeg.version versions.json)"
+          curl -fsSL --proto '=https' -o "dist/ffmpeg-$v.tar.xz" "$(jq -r .ffmpeg.source versions.json)"
+          verify_sha256 "dist/ffmpeg-$v.tar.xz" "$(jq -r .ffmpeg.sha256 versions.json)"
+          cp licenses/go2rtc-MIT.txt licenses/ffmpeg-LGPL-2.1.txt NOTICE.txt scripts/build-ffmpeg.sh dist/
+      - name: Manifest
+        run: scripts/make-manifest.sh dist "$RELEASE"
+      - name: Publish
+        run: |
+          cd dist
+          rm -f ./*.upstream-sha256
+          gh release create "$RELEASE" --repo "$GITHUB_REPOSITORY" --title "$RELEASE" \
+            --notes "Media component for the Sidiom Gateway. Pins: components.json. Licences: go2rtc MIT, ffmpeg LGPL-2.1-or-later (source and build script attached)." \
+            ./*

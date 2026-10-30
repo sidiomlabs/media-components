@@ -20,7 +20,11 @@ cd "$work/src"
   echo "== Go standard library =="
   cat "$(go env GOROOT)/LICENSE"
   go mod download
-  go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' ./... | sort -u |
+  # Per target: modules used only on one platform are listed too.
+  for target in linux/arm64 linux/amd64 darwin/arm64 windows/amd64; do
+    GOOS="${target%/*}" GOARCH="${target#*/}" \
+      go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' ./...
+  done | sort -u |
     while read -r path version dir; do
       echo
       echo "== $path $version =="

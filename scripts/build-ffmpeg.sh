@@ -54,7 +54,7 @@ esac
 
 # Licence and feature checks on the built binary (the Windows one under wine).
 run=(./"$exe")
-[ "$platform" = "win32-x64" ] && run=(env WINEDEBUG=-all wine "./$exe")
+[ "$platform" = "win32-x64" ] && run=(env WINEDEBUG=-all "$(command -v wine || command -v wine64)" "./$exe")
 grep -q 'CONFIG_GPL 0' config.h && grep -q 'CONFIG_NONFREE 0' config.h
 # Captured first: `grep -q` closing a pipe early would fail the pipeline under pipefail.
 licence="$("${run[@]}" -hide_banner -L)"; decoders="$("${run[@]}" -hide_banner -decoders)"; encoders="$("${run[@]}" -hide_banner -encoders)"

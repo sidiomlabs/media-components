@@ -4,7 +4,7 @@
 # texts, from the go2rtc source at the pinned tag and commit, into one notices file shipped beside the binary.
 source "$(dirname "$0")/common.sh"
 
-out="$1"
+out="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 tag="$(jq -r '.go2rtc.tag' "$VERSIONS")"
 commit="$(jq -r '.go2rtc.commit' "$VERSIONS")"

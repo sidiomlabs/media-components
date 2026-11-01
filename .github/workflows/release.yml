@@ -48,6 +48,9 @@ jobs:
             runner: ubuntu-24.04-arm
           - platform: darwin-arm64
             runner: macos-15
+          # Intel Macs (an internal desktop build); built natively on GitHub's Intel macOS image.
+          - platform: darwin-amd64
+            runner: macos-15-intel
           - platform: win32-x64
             runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
@@ -64,7 +67,10 @@ jobs:
           if [ "${{ matrix.platform }}" = "win32-x64" ]; then sudo apt-get install -y --no-install-recommends mingw-w64 wine64 wine; fi
       - name: Toolchain (macOS)
         if: runner.os == 'macOS'
-        run: command -v jq
+        run: |
+          command -v jq
+          # ffmpeg's x86 assembly needs nasm.
+          if [ "${{ matrix.platform }}" = "darwin-amd64" ]; then brew install nasm; fi
       - name: go2rtc
         run: scripts/fetch-go2rtc.sh "${{ matrix.platform }}" out
       - name: ffmpeg

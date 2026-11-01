@@ -21,7 +21,7 @@ cd "$work/src"
   cat "$(go env GOROOT)/LICENSE"
   go mod download
   # Per target: modules used only on one platform are listed too.
-  for target in linux/arm64 linux/amd64 darwin/arm64 windows/amd64; do
+  for target in linux/arm64 linux/amd64 darwin/arm64 darwin/amd64 windows/amd64; do
     GOOS="${target%/*}" GOARCH="${target#*/}" \
       go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}} {{.Dir}}{{end}}{{end}}' ./...
   done | sort -u |

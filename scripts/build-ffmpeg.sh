@@ -37,7 +37,7 @@ flags=(
 exe="ffmpeg"
 case "$platform" in
   linux-*) flags+=(--pkg-config-flags=--static --extra-ldflags=-static) ;;
-  darwin-arm64) flags+=(--extra-cflags=-mmacosx-version-min=13.0 --extra-ldflags=-mmacosx-version-min=13.0) ;;
+  darwin-*) flags+=(--extra-cflags=-mmacosx-version-min=13.0 --extra-ldflags=-mmacosx-version-min=13.0) ;;
   win32-x64)
     flags+=(--enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static)
     exe="ffmpeg.exe" ;;

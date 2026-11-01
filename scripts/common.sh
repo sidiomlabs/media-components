@@ -1,7 +1,7 @@
 # Shared helpers; sourced by the other scripts.
 set -euo pipefail
 
-PLATFORMS="${PLATFORMS:-linux-arm64 linux-amd64 darwin-arm64 win32-x64}"
+PLATFORMS="${PLATFORMS:-linux-arm64 linux-amd64 darwin-arm64 darwin-amd64 win32-x64}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSIONS="$ROOT/versions.json"
 

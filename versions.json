@@ -17,6 +17,11 @@
         "member": "go2rtc",
         "sha256": "d0cf858a71803dce2377423bc830639137ee96c335f88e9912e7f7898374266d"
       },
+      "darwin-amd64": {
+        "name": "go2rtc_mac_amd64.zip",
+        "member": "go2rtc",
+        "sha256": "7ca6075421b824eebe0383d20bd42a6f6a7ec7591a60931d42290f1d375169b9"
+      },
       "win32-x64": {
         "name": "go2rtc_win64.zip",
         "member": "go2rtc.exe",

@@ -12,7 +12,7 @@ trust, not this host or the transport. A release is never overwritten; a new pin
 ## Platforms
 
 `linux-arm64` (Wiren Board 8, Raspberry Pi 5), `linux-amd64` (Docker testenv, cloud test Gateways), `darwin-arm64`
-(the desktop app on a Mac), `win32-x64` (the desktop app on Windows).
+(the desktop app on a Mac), `darwin-amd64` (an internal desktop build for Intel Macs), `win32-x64` (the desktop app on Windows).
 
 ## A release
 
@@ -33,7 +33,7 @@ Each binary is its own gzip file so the Gateway unpacks it with Node's `zlib` on
    version with the tarball SHA-256 after checking its signature against the FFmpeg release key) in a reviewed pull
    request.
 2. Run the `release` workflow by hand on `main` with a new tag `media-YYYY.MM.N`. It refuses another branch, an
-   existing release or tag, builds all four platforms and publishes with the tag on the built commit. Immutable releases
+   existing release or tag, builds all five platforms and publishes with the tag on the built commit. Immutable releases
    and a tag ruleset for `media-*` in the repository settings keep a published release unchanged.
 3. Copy `components.json` values into the Gateway's pin table in a reviewed Sidiom change; keep the previous pin.
 
